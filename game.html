@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>オセロゲーム</title>
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@700&family=Roboto&display=swap" rel="stylesheet">
+    <style>
+        body {
+            background: #222;
+            color: #fff;
+            font-family: 'Roboto', sans-serif;
+            margin: 0;
+            padding: 0;
+        }
+        h1 {
+            text-align: center;
+            margin-top: 2rem;
+            font-family: 'Montserrat', sans-serif;
+        }
+        #board {
+            display: grid;
+            grid-template-columns: repeat(8, 40px);
+            grid-template-rows: repeat(8, 40px);
+            gap: 2px;
+            margin: 2rem auto;
+            width: 324px;
+            background: #333;
+            border-radius: 12px;
+            box-shadow: 0 4px 24px rgba(0,0,0,0.3);
+        }
+        .cell {
+            width: 40px;
+            height: 40px;
+            background: #0a7d2c;
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+        }
+        .piece {
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+        }
+        .black {
+            background: #222;
+        }
+        .white {
+            background: #fff;
+        }
+        #info {
+            text-align: center;
+            margin-bottom: 1rem;
+        }
+        #reset {
+            display: block;
+            margin: 0 auto 2rem auto;
+            padding: 0.5rem 2rem;
+            font-size: 1rem;
+            border-radius: 8px;
+            border: none;
+            background: #0a7d2c;
+            color: #fff;
+            cursor: pointer;
+        }
+        #reset:hover {
+            background: #0e9c3c;
+        }
+    </style>
+</head>
+<body>
+    <h1>オセロゲーム</h1>
+    <div id="info"></div>
+    <button id="reset">リセット</button>
+    <div id="board"></div>
+    <script>
+        const board = document.getElementById('board');
+        const info = document.getElementById('info');
+        const resetBtn = document.getElementById('reset');
+        let cells = [];
+        let turn = 'black';
+        let boardState = Array(8).fill().map(() => Array(8).fill(null));
+
+        function initBoard() {
+            board.innerHTML = '';
+            cells = [];
+            for (let y = 0; y < 8; y++) {
+                cells[y] = [];
+                for (let x = 0; x < 8; x++) {
+                    const cell = document.createElement('div');
+                    cell.className = 'cell';
+                    cell.dataset.x = x;
+                    cell.dataset.y = y;
+                    cell.addEventListener('click', () => handleMove(x, y));
+                    board.appendChild(cell);
+                    cells[y][x] = cell;
+                }
+            }
+            // 初期配置
+            boardState = Array(8).fill().map(() => Array(8).fill(null));
+            boardState[3][3] = 'white';
+            boardState[3][4] = 'black';
+            boardState[4][3] = 'black';
+            boardState[4][4] = 'white';
+            renderBoard();
+            turn = 'black';
+            updateInfo();
+        }
+
+        function renderBoard() {
+            for (let y = 0; y < 8; y++) {
+                for (let x = 0; x < 8; x++) {
+                    cells[y][x].innerHTML = '';
+                    const piece = boardState[y][x];
+                    if (piece) {
+                        const div = document.createElement('div');
+                        div.className = 'piece ' + piece;
+                        cells[y][x].appendChild(div);
+                    }
+                }
+            }
+        }
+
+        function handleMove(x, y) {
+            if (boardState[y][x]) return;
+            const flips = getFlips(x, y, turn);
+            if (flips.length === 0) return;
+            boardState[y][x] = turn;
+            for (const [fx, fy] of flips) {
+                boardState[fy][fx] = turn;
+            }
+            turn = turn === 'black' ? 'white' : 'black';
+            renderBoard();
+            updateInfo();
+            if (!hasValidMove(turn)) {
+                turn = turn === 'black' ? 'white' : 'black';
+                if (!hasValidMove(turn)) {
+                    showResult();
+                } else {
+                    updateInfo('パス！ ' + (turn === 'black' ? '黒' : '白') + 'の番です');
+                }
+            }
+        }
+
+        function getFlips(x, y, color) {
+            const directions = [
+                [0,1],[1,0],[0,-1],[-1,0],
+                [1,1],[1,-1],[-1,1],[-1,-1]
+            ];
+            let flips = [];
+            for (const [dx, dy] of directions) {
+                let nx = x + dx, ny = y + dy;
+                let line = [];
+                while (nx >= 0 && nx < 8 && ny >= 0 && ny < 8) {
+                    if (!boardState[ny][nx]) break;
+                    if (boardState[ny][nx] === color) {
+                        if (line.length > 0) flips = flips.concat(line);
+                        break;
+                    }
+                    line.push([nx, ny]);
+                    nx += dx; ny += dy;
+                }
+            }
+            return flips;
+        }
+
+        function hasValidMove(color) {
+            for (let y = 0; y < 8; y++) {
+                for (let x = 0; x < 8; x++) {
+                    if (!boardState[y][x] && getFlips(x, y, color).length > 0) return true;
+                }
+            }
+            return false;
+        }
+
+        function updateInfo(msg) {
+            if (msg) {
+                info.textContent = msg;
+            } else {
+                info.textContent = (turn === 'black' ? '黒' : '白') + 'の番です';
+            }
+        }
+
+        function showResult() {
+            let black = 0, white = 0;
+            for (let y = 0; y < 8; y++) {
+                for (let x = 0; x < 8; x++) {
+                    if (boardState[y][x] === 'black') black++;
+                    if (boardState[y][x] === 'white') white++;
+                }
+            }
+            let result = '';
+            if (black > white) result = '黒の勝ち！';
+            else if (white > black) result = '白の勝ち！';
+            else result = '引き分け！';
+            info.textContent = `ゲーム終了 黒:${black} 白:${white} → ${result}`;
+        }
+
+        resetBtn.addEventListener('click', initBoard);
+        initBoard();
+    </script>
+</body>
+</html>
